@@ -202,7 +202,7 @@
           <a href="/artist_page.html?artistId=${album.artist.id}"><p class="artist-name">${album.artist.name}</p></a>
         </div>
         <div class="mt-4 text-center">
-          <button id="btnPlay" class="btn btn-success" type="button">
+          <button id="btnPlay" class="btn btn-success" type="button" onclick="playRandom()">
             Play
           </button>
         </div>`;
@@ -212,9 +212,12 @@
         return `
         <div class="py-3 trackHover">
           <a
+            id=${song.id}
             href="#"
             class="card-title trackHover px-3"
             style="color: white;"
+            track-src=${song.preview}
+            duration=${song.duration}
             >${song.title}</a>
           <small class="duration pr-3" style="color: white;"
             >${
@@ -225,8 +228,22 @@
         </div>
         `;
       };
+      const playRandom = () => {
+        const track = document.querySelectorAll(".trackHover a");
+        const getAlbumPic = document.querySelector(".playerArtistInfo img").src;
+        const getAlbumTitle = document.querySelector(".playerArtistInfo h6")
+          .innerText;
+        let randomNum = Math.floor(Math.random() * 6 + 1);
+        setPlayerSong({
+          id: track[randomNum].id,
+          preview: track[randomNum].getAttribute("track-src"),
+          title: track[randomNum].innerText,
+          duration: track[randomNum].getAttribute("duration"),
+          album: { cover: getAlbumPic, title: getAlbumTitle },
+        });
+      };
 
-      window.onload = function () {
+      window.onload = async () => {
         let albumId = new URLSearchParams(document.location.search).get("id");
 
         let headers = new Headers({
@@ -235,69 +252,74 @@
             "4013e328ffmsh3feb54311ce7296p1c3cc4jsnd3ad09e0821d",
         });
 
-        fetch("https://deezerdevs-deezer.p.rapidapi.com/album/" + albumId, {
-          method: "GET",
-          headers,
-        })
-          .then((response) => {
-            if (response.ok) {
-              return response.json();
+        try {
+          let response = await fetch(
+            "https://deezerdevs-deezer.p.rapidapi.com/album/" + albumId,
+            {
+              method: "GET",
+              headers,
             }
-          })
-          .then((album) => {
-            let imgContainer = document.querySelector("#img-container");
-            imgContainer.innerHTML += albumArt(album);
-            let trackList = document.querySelector("#trackList");
+          );
 
-            for (let i = 0; i < album.tracks.data.length; i++) {
-              let div = document.createElement("div");
-              div.innerHTML += song(album.tracks.data[i]);
+          let album = await response.json();
 
-              div.onclick = () =>
-                setPlayerSong({
-                  album: {
-                    cover: album.cover,
-                    title: album.title,
-                  },
-                  id: album.tracks.data[i].id,
-                  title: album.tracks.data[i].title,
-                  duration: album.tracks.data[i].duration,
-                  preview: album.tracks.data[i].preview,
-                });
-              trackList.appendChild(div);
-            }
+          let imgContainer = document.querySelector("#img-container");
+          imgContainer.innerHTML += albumArt(album);
+          let trackList = document.querySelector("#trackList");
 
-            const storageSongId = window.localStorage.getItem("songId");
-            const prevSong = album.tracks.data.find(
-              (song) => song.id === parseInt(storageSongId)
-            );
-            if (storageSongId && prevSong) {
-              if (prevSong) {
-                setPlayerInfos({
-                  album: {
-                    cover: album.cover,
-                    title: album.title,
-                  },
-                  id: prevSong.id,
-                  title: prevSong.title,
-                  duration: prevSong.duration,
-                  preview: prevSong.preview,
-                });
-              }
-            } else {
+          for (let i = 0; i < album.tracks.data.length; i++) {
+            let div = document.createElement("div");
+            div.innerHTML += song(album.tracks.data[i]);
+
+            div.onclick = () =>
+              setPlayerSong({
+                album: {
+                  cover: album.cover,
+                  title: album.title,
+                },
+                id: album.tracks.data[i].id,
+                title: album.tracks.data[i].title,
+                duration: album.tracks.data[i].duration,
+                preview: album.tracks.data[i].preview,
+              });
+            trackList.appendChild(div);
+          }
+
+          const storageSongId = window.localStorage.getItem("songId");
+          const prevSong = album.tracks.data.find(
+            (song) => song.id === parseInt(storageSongId)
+          );
+          if (storageSongId && prevSong) {
+            if (prevSong) {
               setPlayerInfos({
                 album: {
                   cover: album.cover,
                   title: album.title,
                 },
-
-                id: album.tracks.data[0].id,
-                title: album.tracks.data[0].title,
-                duration: album.tracks.data[0].duration,
-                preview: album.tracks.data[0].preview,
+                id: prevSong.id,
+                title: prevSong.title,
+                duration: prevSong.duration,
+                preview: prevSong.preview,
               });
             }
-          });
+          } else {
+            setPlayerInfos({
+              album: {
+                cover: album.cover,
+                title: album.title,
+              },
+
+              id: album.tracks.data[0].id,
+              title: album.tracks.data[0].title,
+              duration: album.tracks.data[0].duration,
+              preview: album.tracks.data[0].preview,
+            });
+          }
+        } catch (exception) {
+          let div = document.querySelector("#trackList");
+          div.classList.add("text-danger");
+          div.innerHTML = exception;
+        }
       };
     </script>
   </body>
